@@ -7,3 +7,6 @@ a process for finding the minimum sample allocation for a Stratitfied Random Sam
 replacement.
 
 Formulas, descriptors, definitions will be referenced where applicable.
+
+
+test forumals https://latex.codecogs.com/svg.image?\sum_{x=a}^{b}x^2
