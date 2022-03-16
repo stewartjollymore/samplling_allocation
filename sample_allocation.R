@@ -86,17 +86,17 @@ head(strata_domain_count_synth)
 {
 # Initiate Variance and Fixed Components - these formulas were found in the Sampling Tool
 p=strata_domain_count$prevalence
-k=strata_domain_count$DOMSIZE
-h=strata_domain_count$STRATSIZE
-n=strata_domain_count$STRDOMSIZE
+N_d=strata_domain_count$DOMSIZE
+N_h=strata_domain_count$STRATSIZE
+N_dh=strata_domain_count$STRDOMSIZE
 e=strata_domain_count$ELIG.RATE
 
 
 
-popvar<-(p*(n/h)*(1-(p*(n/h)*e)))/e
+popvar<-(p*(N_dh/N_h)*(1-(p*(N_dh/N_h)*e)))/e
 
-strata_domain_count$VARCOMP<-popvar*(h/(h-1))*(h/k)^2
-strata_domain_count$FXDCOMP<-(popvar/(h-1))*(h/k)^2
+strata_domain_count$VARCOMP<-popvar*(N_h/(N_h-1))*(N_h/N_d)^2
+strata_domain_count$FXDCOMP<-(popvar/(N_h-1))*(N_h/N_d)^2
 
 strata_domain_count<- strata_domain_count %>% arrange(STRATA,DOMAIN)
 head(strata_domain_count)
