@@ -6,9 +6,19 @@ It draws from Neyman (1934) and Chromy (1987) amoungst other papers to develop
 a process for finding the minimum sample allocation for a Stratitfied Random Sample w/o
 replacement.
 
-Formulas, descriptors, definitions will be referenced where applicable.
+Definitions:  Below we define the inputs and outputs according to the literature.  
+
+<img src="https://latex.codecogs.com/svg.image?d=&space;the&space;\&space;d'th&space;\&space;domain">
+
+<img src="https://latex.codecogs.com/svg.image?h=&space;the&space;\&space;h'th&space;\&space;stratum">
+
+<img src="https://latex.codecogs.com/svg.image?N_d=&space;the&space;\&space;d'th&space;\&space;Domain&space;\&space;size">
+
+<img src="https://latex.codecogs.com/svg.image?N_h=&space;the&space;\&space;h'th&space;\&space;Stratum&space;\&space;size">
+
+ <img src="https://latex.codecogs.com/svg.image?N_{h,d}=&space;the&space;\&space;h'th&space;\&space;Stratum&space;\&space;&space;and&space;\&space;d'th&space;\&space;Domain&space;\&space;size">
 
 
-test forumals <img src="https://latex.codecogs.com/svg.image?\sum_{x=a}^{b}x^2">
+ <img src="">
   
-  \sum_{x=a}^{b}x^2
+
