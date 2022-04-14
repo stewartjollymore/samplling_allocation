@@ -1,8 +1,11 @@
 # -----------------------------------------------------
-# Programmed by Jeff SChneider with modifications
+#
+# Updates and fixes accodcording to literature by: Stewart Jollymore
+#
+# Initially programmed by Jeff SChneider with modifications
 # by Eric Falk
-# Last Modified: 03/18/2019
-# Library dplyr updated 04/03/2019 John Chantis
+# Last Modified: 03/20/2022
+# 
 #
 # This program reads in the following files and
 # determines the overall sample allocation:
@@ -84,37 +87,41 @@ head(strata_domain_count_synth)
 
 ## Create components and inital lambda
 {
-# Initiate Variance and Fixed Components - these formulas were found in the Sampling Tool
-p=strata_domain_count$prevalence
-N_d=strata_domain_count$DOMSIZE
-N_h=strata_domain_count$STRATSIZE
-N_dh=strata_domain_count$STRDOMSIZE
-e=strata_domain_count$ELIG.RATE
+## Renames values to coincide with literature making reading 
+## equations easier
+p=strata_domain_count_synth$prevalence
+N_d=strata_domain_count_synth$DOMSIZE
+N_h=strata_domain_count_synth$STRATSIZE
+N_dh=strata_domain_count_synth$STRDOMSIZE
+e=strata_domain_count_synth$ELIG.RATE
 
 
+## This is varaince of a population proportion by strata component of 
+## the Lagrange Multiplier 
+popvar<-(p*(N_dh/N_h)*(1-(p*(N_dh/N_h))))
 
-popvar<-(p*(N_dh/N_h)*(1-(p*(N_dh/N_h)*e)))/e
+## VARCOMP is the full variance component which comes from solving objective 
+## function for Lagrange Multiplier
+strata_domain_count_synth$VARCOMP<-((N_h/N_d)^2)*N_h/(N_h-1))*popvar
 
-strata_domain_count$VARCOMP<-popvar*(N_h/(N_h-1))*(N_h/N_d)^2
-strata_domain_count$FXDCOMP<-(popvar/(N_h-1))*(N_h/N_d)^2
+strata_domain_count_synth<- strata_domain_count_synth %>% arrange(STRATA,DOMAIN)
+head(strata_domain_count_synth)
 
-strata_domain_count<- strata_domain_count %>% arrange(STRATA,DOMAIN)
-head(strata_domain_count)
-
-# Calulate Initial Lambda (see Chromy paper - TOP Left of Page 196)
-
-i_lambda<- strata_domain_count %>% group_by(DOMAIN) %>%
+## Calulate Initial Lambda (see Chromy paper - TOP Left of Page 196)
+## Initial lambda is derivated in the readme file but comes from 
+## maximizing with respect to allocation sample size using partial derivatives
+## of the objective function and solving for lambda
+i_lambda<- strata_domain_count_synth %>% group_by(DOMAIN) %>%
   mutate(num = (sqrt(VARCOMP*COST)),
-         denom1=(FXDCOMP),
-         denom2=precision) %>%
+         den=precision) %>%
   summarise(num = sum(num),
-            denom1=sum(denom1),
-            denom2=mean(denom2)) %>%
-  mutate(lambda = (num/(denom1+denom2)),
-         init_lambda=lambda^2)
+            den=mean(den)) %>%  # mean is taken here since precision is domain specific
+                                # and mean of a constant is its self
+  mutate(lambda = (num/(den)),
+         initial_lambda=lambda^2)
 
 domain_info<-merge(domain_info,i_lambda,by="DOMAIN",all=T)
-domain_info$iter_lambda<-domain_info$lambda^2
+domain_info$lambda_i<-domain_info$lambda^2
 head(domain_info)
 
 #  Set up for the iteration
@@ -132,37 +139,37 @@ for (i in 1:30) {
   
   cat(paste0("current iteration: ",i,"\n"))
   
-  strata_domain_count$iter_lambda<-NULL
-  strata_domain_count$N2<-NULL
-  strata_domain_count$ALLOCATION<-NULL
-  strata_domain_count_i<-merge(strata_domain_count,
-                               domain_info[,c("DOMAIN","iter_lambda")],
+  strata_domain_count_synth$lambda_i<-NULL
+  strata_domain_count_synth$n_h<-NULL
+  strata_domain_count_synth$ALLOCATION<-NULL
+  strata_domain_count_i<-merge(strata_domain_count_synth,
+                               domain_info[,c("DOMAIN","lambda_i")],
                                by="DOMAIN",
                                all.x=T)
   
-  strata_domain_count_i$N<-strata_domain_count_i$VARCOMP*strata_domain_count_i$iter_lambda
+  strata_domain_count_i$n<-strata_domain_count_i$VARCOMP*strata_domain_count_i$lambda_i
   
-  store_lambda<-cbind(store_lambda,domain_info$iter_lambda)
+  store_lambda<-cbind(store_lambda,domain_info$lambda_i)
   
   hm<- strata_domain_count_i %>%
     group_by(STRATA) %>% 
     summarise(STRATSIZE = mean(STRATSIZE),
-              N1=sum(N),
+              n=sum(n),
               COST=mean(COST),
               RESP.RATE=mean(RESP.RATE))
   
   
-  hm$N2<-sqrt(hm$N1/hm$COST) #KKT ERROR HERE See Mason 1995 page 20
+  hm$n_h<-sqrt(hm$n/hm$COST) #KKT ERROR HERE See Mason 1995 page 20
   
 
-  hm$noKKTflag<-ifelse(hm$N2>=hm$STRATSIZE,
+  hm$noKKTflag<-ifelse(hm$n_h>=hm$STRATSIZE,
                        hm$STRATA,
                        NA)
 
-  strata_domain_count_i<-merge(strata_domain_count_i,hm[,c("STRATA","N2")],by="STRATA")
+  strata_domain_count_i<-merge(strata_domain_count_i,hm[,c("STRATA","n_h")],by="STRATA")
   
   #compute domain level variances
-  strata_domain_count_i$STRDOMVAR<-(strata_domain_count_i$VARCOMP/strata_domain_count_i$N2)-strata_domain_count_i$FXDCOMP
+  strata_domain_count_i$STRDOMVAR<-(strata_domain_count_i$VARCOMP/strata_domain_count_i$N2)
   
   dom_var<- strata_domain_count_i %>% 
     select(DOMAIN,STRDOMVAR,precision) %>% 
@@ -172,7 +179,7 @@ for (i in 1:30) {
   
   domain_info$DOMVAR<-dom_var$DOM_VAR
   
-  domain_info$SS<-sqrt(domain_info$iter_lambda)*(domain_info$DOMVAR-dom_var$precision)^2
+  domain_info$SS<-sqrt(domain_info$lambda_i)*(domain_info$DOMVAR-dom_var$precision)^2
   conv.crit =  0.000000001
   
   domain_info$FIN = ifelse(domain_info$SS < conv.crit,
@@ -181,11 +188,11 @@ for (i in 1:30) {
   store_ss<-rbind(store_ss,sum(domain_info$SS))
   
   #TERMINATION CRITERION
-  domain_info$iter_lambda<-(domain_info$iter_lambda)*(domain_info$DOMVAR/dom_var$precision)^2
+  domain_info$lambda_i<-(domain_info$lambda_i)*(domain_info$DOMVAR/dom_var$precision)^2
   
-  domain_info$iter_lambda<-ifelse(domain_info$iter_lambda < 0.0000001,
+  domain_info$lambda_i<-ifelse(domain_info$lambda_i < 0.0000001,
                                   0,
-                                  domain_info$iter_lambda)
+                                  domain_info$lambda_i)
   
   
   sum_squares<-sum(domain_info$SS)
@@ -195,9 +202,9 @@ for (i in 1:30) {
   
   
   allocation_interal<- hm %>%
-    select(STRATA, N2, STRATSIZE, RESP.RATE) %>%
+    select(STRATA, n_h, STRATSIZE, RESP.RATE) %>%
     group_by(STRATA) %>%
-    summarise(N_sum = sum(ceiling(N2)), 
+    summarise(N_sum = sum(ceiling(n_h)), 
               STRATASIZE = mean(STRATSIZE),
               RESP=mean(RESP.RATE))
   
@@ -222,7 +229,7 @@ for (i in 1:30) {
 
 allocation<- hm %>%
   group_by(STRATA) %>%
-  summarise(N_sum = sum(ceiling(N2)), 
+  summarise(N_sum = sum(ceiling(n_h)), 
             STRATASIZE = mean(STRATSIZE),
             RESP=mean(RESP.RATE))
 
