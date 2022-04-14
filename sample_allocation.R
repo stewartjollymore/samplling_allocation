@@ -1,14 +1,9 @@
-# -----------------------------------------------------
-#
-# Updates and fixes accodcording to literature by: Stewart Jollymore
-#
-# Initially programmed by Jeff SChneider with modifications
-# by Eric Falk
-# Last Modified: 03/20/2022
-# 
-#
+## Creator: Stewart Jollymore
+## based on work by Jeff Schinder, Jill Devers PhD.
+
+
 # This program reads in the following files and
-# determines the overall sample allocation:
+# determines the overall integer sample allocation:
 # 1) costs, eligibility, and completion
 # 2) domains
 # 3) precisions
